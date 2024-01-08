@@ -15,9 +15,11 @@ class Report:
         self.data_percentage: dict = {}
         self.export_data: list = []
         self.html_file_name = ''
+        # Use job_id or timestamp in file names (to make them unic)
         if job_id:
             self.html_file_name = f'html_{job_id}.html'
             self.html_file_name_additional = f'{job_id}_additional.html'
+            self.concat_html = f'{job_id}_concat.html'
             self.output_pdf_file_name = f'Report_for_job_{job_id}.pdf'
         else:
             # Current GMT time in a tuple format
@@ -26,6 +28,7 @@ class Report:
             ts = calendar.timegm(current_gmt)
             self.html_file_name = f'html_{ts}.html'
             self.html_file_name_additional = f'{ts}_additional.html'
+            self.concat_html = f'{ts}_concat.html'
             self.output_pdf_file_name = f'Report_for_job_{ts}.pdf'
         # initial static values dicts
         self.data_codes: dict = {
@@ -82,23 +85,27 @@ class Report:
 
     def create_report(self):
         print(f'Creating pdf report...')
-        # Calculates amount of each code
         self.calc_codes_amounts()
-        # Calculates total of all codes amounts
         self.calc_total()
-        # Calculates % of each code amount
         self.calc_percentage()
-        # Create final data structure list[dict] for future converting
         self.create_final_data_structure()
         self.create_df_to_process()
         self.convert_df_html()
-        # self.create_additional_part_html() not use foe now
+        self.create_additional_part_html()
+        self.concat_main_html_additional()
         self.convert_html_pdf()
+        self.purge_html_artifacts()
 
-    def purge_artifacts(self):
+    def purge_html_artifacts(self):
         os.remove(self.html_file_name)
+        # os.remove(self.output_pdf_file_name)
+        os.remove(self.html_file_name_additional)
+        os.remove(self.concat_html)
+        print(f'Removed html artifacts')
+
+    def purge_pdf_artifacts(self):
         os.remove(self.output_pdf_file_name)
-        print(f'Removed report file -> {self.output_pdf_file_path}')
+        print(f'Removed pdf artifacts')   
 
     @staticmethod
     def percentage(part, whole):
@@ -154,10 +161,20 @@ class Report:
         f.close()
 
     def concat_main_html_additional(self):
-        pass
+        main_html = open(self.html_file_name, 'r')
+        additional_html = open(self.html_file_name_additional, 'r')
+        content_main_html = main_html.read()
+        content_additional_html = additional_html.read()
+        main_html.close()
+        additional_html.close()
+        # Open the destination concatenated file
+        concat_html = open(self.concat_html, 'w')
+        concat_html.write(content_main_html + content_additional_html)
+        # Close the destination file
+        concat_html.close()
 
     def convert_html_pdf(self) -> None:
         """  Convert html file to pdf file"""
-        pdfkit.from_file(f'{self.html_file_name}',
+        pdfkit.from_file(f'{self.concat_html}',
                          f'{self.output_pdf_file_name}')
         print(f'Report created - file {self.output_pdf_file_name}')

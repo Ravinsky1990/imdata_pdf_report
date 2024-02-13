@@ -148,7 +148,7 @@ class Report:
     def convert_df_html(self):
         """  Convert df with calculated data to html"""
         f = open(f'{self.html_file_name}', 'w')
-        a = self.df_for_pdf.to_html()
+        a = self.df_for_pdf.to_html(index=False)
         f.write(a)
         f.close()
 

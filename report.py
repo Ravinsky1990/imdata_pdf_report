@@ -94,7 +94,7 @@ class Report:
         self.create_additional_part_html()
         self.concat_main_html_additional()
         self.convert_html_pdf()
-        self.purge_html_artifacts()
+        # self.purge_html_artifacts()
 
     def purge_html_artifacts(self):
         os.remove(self.html_file_name)
@@ -156,7 +156,7 @@ class Report:
         """  Create second part (named Additional fields)"""
         additional_fields_df = pd.DataFrame.from_dict(self.additional_fields)
         f = open(f'{self.html_file_name_additional}', 'w')
-        a = additional_fields_df.to_html()
+        a = additional_fields_df.to_html(header=False, index=False)
         f.write(a)
         f.close()
 

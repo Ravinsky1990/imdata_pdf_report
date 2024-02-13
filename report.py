@@ -15,6 +15,7 @@ class Report:
         self.data_percentage: dict = {}
         self.export_data: list = []
         self.html_file_name = ''
+        self.addition_fields_header_html = 'header_addition.html'
         # Use job_id or timestamp in file names (to make them unic)
         if job_id:
             self.html_file_name = f'html_{job_id}.html'
@@ -153,7 +154,7 @@ class Report:
         f.close()
 
     def create_additional_part_html(self):
-        """  Create second part (named Additional fields)"""
+        """  Create second part (named Additional fields) with header 'Addition fields' """
         additional_fields_df = pd.DataFrame.from_dict(self.additional_fields)
         f = open(f'{self.html_file_name_additional}', 'w')
         a = additional_fields_df.to_html(header=False, index=False)
@@ -163,13 +164,17 @@ class Report:
     def concat_main_html_additional(self):
         main_html = open(self.html_file_name, 'r')
         additional_html = open(self.html_file_name_additional, 'r')
+        header_for_addition_html_open = open(self.addition_fields_header_html, 'r')
+
         content_main_html = main_html.read()
         content_additional_html = additional_html.read()
+        header_for_addition_html_read = header_for_addition_html_open.read()
+
         main_html.close()
         additional_html.close()
         # Open the destination concatenated file
         concat_html = open(self.concat_html, 'w')
-        concat_html.write(content_main_html + content_additional_html)
+        concat_html.write(content_main_html + header_for_addition_html_read + content_additional_html)
         # Close the destination file
         concat_html.close()
 

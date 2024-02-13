@@ -3,11 +3,14 @@ import calendar
 import time
 import os
 import pdfkit
+from pathlib import Path
+from datetime import date
 
 
 class Report:
     def __init__(self, csv_file_path=None, job_id=None) -> None:
         self.csv_file_path = csv_file_path
+        self.job_fille_name = Path(csv_file_path).name
         self.output_pdf_file_name = ''
         self.df = None
         self.df_for_pdf = None
@@ -16,12 +19,15 @@ class Report:
         self.export_data: list = []
         self.html_file_name = ''
         self.addition_fields_header_html = 'header_addition.html'
+        self.separator_html = 'separator.html'
         # Use job_id or timestamp in file names (to make them unic)
         if job_id:
             self.html_file_name = f'html_{job_id}.html'
             self.html_file_name_additional = f'{job_id}_additional.html'
             self.concat_html = f'{job_id}_concat.html'
             self.output_pdf_file_name = f'Report_for_job_{job_id}.pdf'
+            self.name_date_html = f'{job_id}_date_name.html'
+            self.move_non_deliver_html = f'{job_id}_move_non_deliver.html'
         else:
             # Current GMT time in a tuple format
             current_gmt = time.gmtime()
@@ -31,6 +37,8 @@ class Report:
             self.html_file_name_additional = f'{ts}_additional.html'
             self.concat_html = f'{ts}_concat.html'
             self.output_pdf_file_name = f'Report_for_job_{ts}.pdf'
+            self.name_date_html = f'{ts}_date_name.html'
+            self.move_non_deliver_html = f'{ts}_move_non_deliver.html'
         # initial static values dicts
         self.data_codes: dict = {
             'P1': 0,
@@ -91,17 +99,23 @@ class Report:
         self.calc_percentage()
         self.create_final_data_structure()
         self.create_df_to_process()
+
         self.convert_df_html()
+        self.create_name_date_html()
         self.create_additional_part_html()
+        self.create_moves_non_deliverable_total_html()
+
         self.concat_main_html_additional()
         self.convert_html_pdf()
-        # self.purge_html_artifacts()
+        self.purge_html_artifacts()
 
     def purge_html_artifacts(self):
         os.remove(self.html_file_name)
         # os.remove(self.output_pdf_file_name)
         os.remove(self.html_file_name_additional)
         os.remove(self.concat_html)
+        os.remove(self.name_date_html)
+        os.remove(self.move_non_deliver_html)
         print(f'Removed html artifacts')
 
     def purge_pdf_artifacts(self):
@@ -161,20 +175,64 @@ class Report:
         f.write(a)
         f.close()
 
+    def create_name_date_html(self):
+        """  Create html for date and name block """
+        date_name_data_struct: dict = {
+            'File Name:': self.job_fille_name,
+            'Date': date.today().strftime("%m/%d/%Y")
+        }
+        date_name_df = pd.DataFrame.from_dict(date_name_data_struct, orient='index')
+        f = open(f'{self.name_date_html}', 'w')
+        a = date_name_df.to_html(header=False)
+        f.write(a)
+        f.close()
+        
+    def create_moves_non_deliverable_total_html(self):
+        """  Create  moves and none dedeliverable block """
+        move_totals = self.data_codes['P1'] + self.data_codes['P2'] + self.data_codes['P3'] + self.data_codes['N1'] + self.data_codes['N2'] + self.data_codes['N3']
+        non_deliver_totals = self.data_codes['MN'] + self.data_codes['D2'] + self.data_codes['SD']
+        persentage_move = self.percentage(move_totals, len(self.df))
+        persentage_non_deliver = self.percentage(non_deliver_totals, len(self.df))
+        move_non_deliver_data_struct = [
+            {
+                'Codes': 'Moves (P1-P3 & N1-N3)',
+                'Total': move_totals,
+                '% of input file': round(persentage_move, 2)
+            },
+            {
+                'Codes': 'Non-Deliverable (MN, D2, SD)',
+                'Total': non_deliver_totals,
+                '% of input file': round(persentage_non_deliver, 2)
+            }
+        ]
+        move_non_deliver_df = pd.DataFrame.from_dict(move_non_deliver_data_struct)
+        f = open(f'{self.move_non_deliver_html}', 'w')
+        a = move_non_deliver_df.to_html(index=False)
+        f.write(a)
+        f.close()
+
     def concat_main_html_additional(self):
         main_html = open(self.html_file_name, 'r')
         additional_html = open(self.html_file_name_additional, 'r')
         header_for_addition_html_open = open(self.addition_fields_header_html, 'r')
+        date_name_html = open(self.name_date_html, 'r')
+        move_non_deliver_html = open(self.move_non_deliver_html, 'r')
+        separator = open(self.separator_html, 'r')
 
         content_main_html = main_html.read()
         content_additional_html = additional_html.read()
         header_for_addition_html_read = header_for_addition_html_open.read()
+        date_name_html_read = date_name_html.read()
+        move_non_deliver_read = move_non_deliver_html.read()
+        separator_read = separator.read()
 
         main_html.close()
         additional_html.close()
+        date_name_html.close()
+        separator.close()
         # Open the destination concatenated file
         concat_html = open(self.concat_html, 'w')
-        concat_html.write(content_main_html + header_for_addition_html_read + content_additional_html)
+        concat_html.write(date_name_html_read + separator_read + move_non_deliver_read + separator_read + content_main_html + header_for_addition_html_read + content_additional_html)
         # Close the destination file
         concat_html.close()
 
